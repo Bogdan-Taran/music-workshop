@@ -94,12 +94,15 @@ class Downloads:
         self.logout_button.pack(side='left', padx=8)
         ttk.Button(buttons, text='Перенести вход из старого скрипта…', command=self.import_account).pack(side='left')
         self.auth_panel = ttk.LabelFrame(box, text='Подтверждение входа', padding=16)
-        ttk.Label(self.auth_panel, text='1. Откройте страницу Яндекса.\n2. Введите этот код и подтвердите вход.\n3. Вернитесь в приложение — оно продолжит автоматически.').pack(anchor='w')
+        self.auth_instructions = tk.StringVar(value='Нажмите «Войти / сменить аккаунт», чтобы получить код.')
+        ttk.Label(self.auth_panel, textvariable=self.auth_instructions, wraplength=800).pack(anchor='w')
         ttk.Entry(self.auth_panel, textvariable=self.code, state='readonly', width=25, font=('Arial', 20)).pack(anchor='w', pady=12)
         actions = ttk.Frame(self.auth_panel)
         actions.pack(anchor='w')
-        ttk.Button(actions, text='Открыть Яндекс', command=self.open_auth).pack(side='left')
-        ttk.Button(actions, text='Скопировать код', command=self.copy_code).pack(side='left', padx=8)
+        self.open_auth_button = ttk.Button(actions, text='Открыть Яндекс', command=self.open_auth, state='disabled')
+        self.open_auth_button.pack(side='left')
+        self.copy_code_button = ttk.Button(actions, text='Скопировать код', command=self.copy_code, state='disabled')
+        self.copy_code_button.pack(side='left', padx=8)
         ttk.Button(actions, text='Отменить вход', command=self.stop).pack(side='left')
         self.auth_note = tk.StringVar()
         ttk.Label(self.auth_panel, textvariable=self.auth_note, wraplength=800).pack(anchor='w', pady=8)
@@ -207,6 +210,8 @@ class Downloads:
             self.auth_panel.pack_forget()
             self.auth_url = None
             self.code.set('')
+            self.open_auth_button.configure(state='disabled')
+            self.copy_code_button.configure(state='disabled')
             self.account_status.set(self.store.summary())
 
     def on_code(self, code):
@@ -220,6 +225,14 @@ class Downloads:
         self.set_running(True)
         self.status.set('Получаю код для входа в Яндекс…')
         self.account_status.set('Получаю код для входа…')
+        self.code.set('')
+        self.auth_url = None
+        self.open_auth_button.configure(state='disabled')
+        self.copy_code_button.configure(state='disabled')
+        self.auth_instructions.set('Запрашиваю код у Яндекса. Он появится здесь после ответа сервера.')
+        self.auth_note.set('Пока не закрывайте приложение. Для отмены нажмите «Отменить вход».')
+        self.auth_panel.pack(fill='x', pady=16)
+        self.notebook.select(self.account_frame)
         def worker():
             try:
                 login_yandex(self.store, self.on_code, self.cancel, force_login=True)
@@ -316,12 +329,18 @@ class Downloads:
                         continue
                     _, code, url, seconds = event
                     parsed = urlparse(url)
-                    if parsed.scheme != 'https' or parsed.hostname not in ('oauth.yandex.ru', 'oauth.yandex.com', 'passport.yandex.ru', 'passport.yandex.com', 'yandex.ru', 'yandex.com'):
+                    if parsed.scheme != 'https' or parsed.hostname not in ('ya.ru', 'oauth.yandex.ru', 'oauth.yandex.com', 'passport.yandex.ru', 'passport.yandex.com', 'yandex.ru', 'yandex.com'):
                         self.stop()
-                        self.status.set('Яндекс вернул неподдерживаемый адрес входа. Обновите библиотеку.')
+                        error = 'Яндекс вернул неподдерживаемый адрес входа. Код не показан. Обновите приложение.'
+                        self.status.set(error)
+                        self.account_status.set(error)
+                        messagebox.showerror('Адрес входа не распознан', error, parent=self.app)
                         continue
                     self.code.set(code)
                     self.auth_url = url
+                    self.open_auth_button.configure(state='normal')
+                    self.copy_code_button.configure(state='normal')
+                    self.auth_instructions.set('1. Нажмите «Открыть Яндекс».\n2. Введите показанный ниже код и подтвердите вход.\n3. Вернитесь сюда — приложение продолжит автоматически.')
                     self.auth_note.set(f'{url}\nКод действует до {seconds} секунд; приложение ожидает подтверждение не более 5 минут.')
                     self.account_status.set('Подтвердите вход по коду в браузере.')
                     self.auth_panel.pack(fill='x', pady=16)
@@ -337,6 +356,7 @@ class Downloads:
                     self.set_running(False)
                     self.status.set(event[1])
                     if kind == 'login_error':
+                        self.account_status.set(event[1])
                         messagebox.showerror('Вход в Яндекс', event[1], parent=self.app)
                 elif kind == 'started':
                     self.update_job(event[1], 'running', f'Скачивание {event[2]}/{event[3]}')
