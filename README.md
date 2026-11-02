@@ -1,17 +1,14 @@
-# music_workshop
+# Music API — незавершённый прототип
 
-A new Flutter project.
+Прототип общего API для существующего редактора. Поддерживает задачи извлечения аудио из одной ссылки YouTube и изменения тегов загруженного файла с общей обложкой. API пока не реализует Яндекс Музыку, Telegram и MAX: подключать реальные аккаунты и публиковать сервис пока нельзя.
 
-## Getting Started
+Локальный запуск для разработки (Python 3.11+; для YouTube нужен Node.js 22+ или Deno 2.3+):
 
-This project is a starting point for a Flutter application.
+    python -m venv .venv
+    .venv/bin/python -m pip install -r requirements.txt
+    export MUSIC_API_KEY="случайный-длинный-секрет"
+    .venv/bin/uvicorn app:app --host 127.0.0.1 --port 8000
 
-A few resources to get you started if this is your first Flutter project:
+Документация API: http://127.0.0.1:8000/docs — передавайте секрет в заголовке X-API-Key. POST /jobs/youtube принимает JSON {"url":"..."}; POST /jobs/tags принимает multipart audio, необязательные title, artist, album и cover. GET /jobs/{id} показывает статус, GET /jobs/{id}/file отдаёт готовый файл.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Ограничения: состояние задач хранится в памяти и исчезает при перезапуске, файлы остаются в data без автоматической очистки; один общий ключ не разделяет пользователей. Один процесс, без очереди с восстановлением, лимитов скорости, HTTPS и изоляции. Для публичного сервера требуется доработка безопасности, изоляции и фоновых задач. Боты, авторизация отдельных пользователей Яндекса, массовые теги и настройки развёртывания ещё не реализованы. Не запускайте этот прототип в открытом интернете.
